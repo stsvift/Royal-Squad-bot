@@ -183,7 +183,6 @@ async def helpme(ctx):
 !top - топ игроков
 
 🎲 Игры:
-!dick - угадай число от 1 до 15
 !daily - ежедневная награда
 !casino [ставка] - рискованная игра
 !weekly_lottery - еженедельный розыгрыш
@@ -195,48 +194,6 @@ async def helpme(ctx):
 async def roll(ctx, sides: int = 6):
     result = random.randint(1, sides)
     await ctx.send(f'🎲 Выпало число: {result}')
-
-@bot.command()
-async def dick(ctx):
-    secret_number = random.randint(1, 15)
-    print(f"Секретное число для {ctx.author.name}: {secret_number}")  # Вывод в консоль до ввода пользователя
-    
-    await ctx.send("🎲 Сколько писюнов показываю? Введи число от 1 до 15!")
-    
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel and m.content.isdigit()
-    
-    try:
-        guess_msg = await bot.wait_for('message', check=check, timeout=30.0)
-        user_guess = int(guess_msg.content)
-        
-        if user_guess < 1 or user_guess > 15:
-            await ctx.send("Число должно быть от 1 до 15!")
-            return
-        
-        # Загрузка текущих очков
-        points = load_points()
-        user_id = str(ctx.author.id)
-        
-        if user_guess == secret_number:
-            # Начисление очков за победу
-            points[user_id] = points.get(user_id, 0) + 50
-            save_points(points)
-            
-            rewards = [
-                "🏆 Вот это удача! Получи свой заслуженный приз!",
-                "🎉 Точно в десятку! Поздравляю с победой!",
-                "💯 Невероятно! Ты угадал!"
-            ]
-            await ctx.send(f"{random.choice(rewards)} Было загадано число {secret_number}! Вы получаете 50 очков!")
-        else:
-            # Небольшое утешение
-            points[user_id] = max(0, points.get(user_id, 0) - 10)
-            save_points(points)
-            await ctx.send(f"Не повезло! Было загадано число {secret_number}. Вы теряете 10 очков. Попробй еще раз!")
-    
-    except asyncio.TimeoutError:
-        await ctx.send("Время вышло! Не медли в следующий раз.")
 
 @bot.command()
 async def top(ctx):
