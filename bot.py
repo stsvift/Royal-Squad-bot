@@ -174,19 +174,19 @@ async def profile(ctx):
 async def helpme(ctx):
     help_text = """
 🛠 Утилиты:
-!settgid [Telegram ID] - привязать Telegram ID
-!mytgid - показать свой привязанный Telegram ID
-!send [@пользователь] [сообщение] - отправить личное сообщение в Telegram
-!tg [сообщение] - отправить сообщение во все чаты
-!online - список онлайн пользователей
-!profile - посмотреть свой профиль
-!top - топ игроков
+!settgid [Telegram ID] - Привязать Telegram ID
+!mytgid - Показать привязанный Telegram ID
+!send [@пользователь1 @пользователь2] [сообщение] - Отправить личное сообщение в Telegram
+!tg [сообщение] - Отправить сообщение во все чаты
+!online - Список онлайн пользователей
+!profile - Посмотреть свой профиль
+!top - Топ игроков
 
 🎲 Игры:
-!daily - ежедневная награда
-!casino [ставка] - рискованная игра
-!weekly_lottery - еженедельный розыгрыш
-!transfer [@пользователь] [количество] - перевод очков
+!daily - Ежедневная награда
+!casino [ставка] - Рискованная игра
+!weekly_lottery - Еженедельный розыгрыш
+!transfer [@пользователь] [количество] - Перевод очков
     """
     await ctx.send(help_text)
 
@@ -369,30 +369,49 @@ async def mytgid(ctx):
         await ctx.send("❌ У вас не установлен Telegram ID. Используйте !settgid")
 
 @bot.command()
-async def send(ctx, member: discord.Member, *, message: str):
-    """Отправить личное сообщение пользователю в Telegram"""
-    # Преобразуем ID в строку для поиска
-    discord_id_str = str(member.id)
+async def send(ctx, members: commands.Greedy[discord.Member], *, message: str):
+    """Отправить личное сообщение пользователям в Telegram"""
+    # Загрузка маппинга Telegram ID
+    DISCORD_TO_TELEGRAM_MAP = load_telegram_id_map()
     
-    # Проверяем, есть ли у пользователя Telegram ID
-    telegram_user_id = DISCORD_TO_TELEGRAM_MAP.get(discord_id_str)
+    # Список для отслеживания успешных и неуспешных отправок
+    successful_sends = []
+    failed_sends = []
     
-    if not telegram_user_id:
-        await ctx.send(f"❌ Для пользователя {member.name} не указан Telegram ID")
-        return
+    # Если не указаны пользователи, отправляем всем из словаря
+    if not members:
+        members = [ctx.guild.get_member(int(discord_id)) for discord_id in DISCORD_TO_TELEGRAM_MAP.keys() if ctx.guild.get_member(int(discord_id))]
     
-    try:
-        # Отправляем личное сообщение в Telegram
-        telegram_bot.send_message(
-            telegram_user_id, 
-            f"💬 Личное сообщение от {ctx.author.name} с Discord:\n{message}"
-        )
+    for member in members:
+        # Преобразуем ID в строку для поиска
+        discord_id_str = str(member.id)
         
-        # Подтверждение в Discord
-        await ctx.send(f"✅ Сообщение отправлено пользователю {member.name} в Telegram")
+        # Проверяем, есть ли у пользователя Telegram ID
+        telegram_user_id = DISCORD_TO_TELEGRAM_MAP.get(discord_id_str)
+        
+        if not telegram_user_id:
+            failed_sends.append(member.name)
+            continue
+        
+        try:
+            # Отправляем личное сообщение в Telegram
+            telegram_bot.send_message(
+                telegram_user_id, 
+                f"💬 Личное сообщение от {ctx.author.name} из Discord:\n{message}"
+            )
+            successful_sends.append(member.name)
+        
+        except Exception as e:
+            failed_sends.append(member.name)
     
-    except Exception as e:
-        await ctx.send(f"❌ Ошибка отправки сообщения: {e}")
+    # Формируем ответное сообщение
+    if successful_sends:
+        success_text = f"✅ Сообщение отправлено: {', '.join(successful_sends)}"
+        await ctx.send(success_text)
+    
+    if failed_sends:
+        failed_text = f"❌ Не удалось отправить: {', '.join(failed_sends)}"
+        await ctx.send(failed_text)
 
 # Получаем токен из переменных окружения
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
